@@ -10,19 +10,72 @@ app.use(cors());
 const users = [];
 
 function checksExistsUserAccount(request, response, next) {
-  // Complete aqui
+  const { username } = request.headers;
+
+  const user = users.find(
+    user => user.username === username
+  );
+
+  if (!user) {
+    return response.status(404).json({ error: "User not found" });
+  }
+
+  request.user = user;
+
+  return next();
 }
 
 function checksCreateTodosUserAvailability(request, response, next) {
-  // Complete aqui
+  const { user } = request;
+
+  const userHasLessThanTenToDos = user.todos.length < 10;
+  const userHasFreePlan = user.pro === false; 
+  const userHasProPlan = user.pro === true;
+
+  if(!userHasLessThanTenToDos && userHasFreePlan) {
+    return response.status(403).json({ error: "You can't create a new to do because the limit in a free plan is 10 to dos per user." });
+  } else if (userHasProPlan || userHasLessThanTenToDos) {
+    return next();
+  }
+
+  return next();
 }
 
 function checksTodoExists(request, response, next) {
-  // Complete aqui
+  const { username } = request.headers;
+  const { id } = request.params;
+
+  const idIsValid = validate(id);
+  const user = users.find(user => user.username === username);
+  const todo = user?.todos.find(todo => todo.id === id);
+  
+  if(!idIsValid) {
+    return response.status(400).json({ error: "Id is not valid"});
+  }
+
+  if(!user || !todo) {
+    return response.status(404).json({ error: "User/To do not found"});
+  }
+
+
+  request.todo = todo;
+  request.user = user;
+
+  return next();
 }
 
 function findUserById(request, response, next) {
-  // Complete aqui
+  const { id } = request.params; 
+
+  const user = users.find(user => user.id === id);
+
+  if(!user) {
+    return response.status(404).json("User not found");
+  }
+
+  request.user = user;
+
+  return next();
 }
 
 app.post('/users', (request, response) => {
@@ -70,6 +123,7 @@ app.get('/todos', checksExistsUserAccount, (request, response) => {
 
   return response.json(user.todos);
 });
+
 
 app.post('/todos', checksExistsUserAccount, checksCreateTodosUserAvailability, (request, response) => {
   const { title, deadline } = request.body;
